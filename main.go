@@ -2,25 +2,17 @@ package main
 
 import (
     "github.com/nlopes/slack"
-    "database/sql"
-    _ "github.com/go-sql-driver/mysql"
+    "encoding/json"
     "log"
-    "time"
-    "fmt"
+    "os"
     "regexp"
     "strings"
-    "os"
-    "encoding/json"
-    "errors"
-    "os/exec"
-    "sort"
+    "time"
 )
 
 const botName = "bugbot"
 const botSlackId = "U04BTN9D2"
 const botKey = "xoxb-4401757444-fDt9Tg9nroPbrlh5NxlDy4Kd"
-const openProjectBugUrl = "https://openproject.activestate.com/work_packages/%s"
-const bugzillaBugUrl = "https://bugs.activestate.com/show_bug.cgi?id=%s"
 const bugNumberRegex = `(?:\s|^)#?([13]\d{5})\b(?:[^-]|$)`
 
 type MysqlConfig struct {
@@ -77,146 +69,4 @@ func main() {
             }
         }
     }
-}
-
-func bugMentions(bugNumbers []string, message *slack.MessageEvent) {
-    log.Printf("That message mentions these bugs: %s", bugNumbers)
-    var messageText string
-
-    for _, match := range bugNumbers {
-        if bugNumberWasLinkedRecently(match, message.ChannelId, message.Timestamp) {
-            log.Printf("Bug %s was already linked recently", match)
-        } else {
-            if string(match[0]) == "3" {
-                messageText += formatOpenProjectBugMessage(match)
-            } else {
-                messageText += fmt.Sprintf(bugzillaBugUrl, match)
-            }
-            messageText += "\n"
-        }
-    }
-
-    if messageText != "" {
-        slackApi.PostMessage(message.ChannelId, messageText, messageParameters)
-    }
-}
-
-func formatOpenProjectBugMessage(bugNumber string) string {
-    var messageText string
-    bugTitle, err := fetchOpenProjectBugTitle(bugNumber)
-    if err != nil && err.Error() == "This bug doesn't exist!" {
-        messageText += fmt.Sprintf("Bug %s doesn't exist!", bugNumber)
-    } else if bugTitle == "" {
-        messageText += fmt.Sprintf("<%s|%s (Couldn't fetch title)>",
-        fmt.Sprintf(openProjectBugUrl, bugNumber), bugNumber)
-    } else {
-        messageText += fmt.Sprintf("<%s|%s: %s>",
-        fmt.Sprintf(openProjectBugUrl, bugNumber), bugNumber, bugTitle)
-    }
-    return messageText
-}
-
-func bugNumberWasLinkedRecently(number string, channelId string, messageTime string) bool {
-    historyParameters.Latest = messageTime
-    info, _ := slackApi.GetChannelHistory(channelId, historyParameters)
-    // Last 10 messages (see historyParameters.Count)
-    for _, message := range info.Messages {
-        if strings.Contains(message.Text, number) {
-            return true
-        }
-    }
-    return false
-}
-
-func fetchOpenProjectBugTitle(bugNumber string) (string, error) {
-    connectionURL := fmt.Sprintf("%s:%s@tcp(%s:3306)/%s?allowOldPasswords=1",
-    mysqlConfig.Username, mysqlConfig.Password, mysqlConfig.Host, mysqlConfig.Database)
-    log.Printf(connectionURL)
-    db, err := sql.Open("mysql", connectionURL)
-    if err != nil {
-        log.Printf("Mysql database is unavailable! %s", err.Error())
-        return "", err
-    }
-    defer db.Close()
-
-    stmtIns, err := db.Prepare("SELECT subject FROM work_packages WHERE id=?")
-    if err != nil {
-        log.Printf("MySQL statement preparation failed! %s", err.Error())
-        return "", err
-    }
-    defer stmtIns.Close()
-
-    var bugTitle string
-    stmtIns.QueryRow(bugNumber).Scan(&bugTitle)
-    if err != nil {
-        log.Printf("MySQL statement failed! %s", err.Error())
-        return "", err
-    }
-
-    if bugTitle == "" {
-        return "", errors.New("This bug doesn't exist!")
-    }
-
-    log.Printf("#%s: %s", bugNumber, bugTitle)
-    return bugTitle, nil
-}
-
-func bugbotMention(message *slack.MessageEvent) {
-    log.Printf("That message mentions bugbot")
-    // Unmerged bugs
-    matched, _ := regexp.MatchString(`^(?:[@/]?bugbot|<@U04BTN9D2>) unmerged`, message.Text)
-    if matched {
-        _, timestamp, _ := slackApi.PostMessage(message.ChannelId, "Working on it... :catbug:", messageParameters)
-        lines, err := getUnMergedBugNumbers()
-        if err != nil {
-            // Cannot use UpdateMessage reliably, doesn't work if we try to update the message before it appears
-            slackApi.DeleteMessage(message.ChannelId, timestamp)
-            messageText := fmt.Sprintf("Oh no! Something went wrong with the unmerged bugs script!\n`%s`", err)
-            slackApi.PostMessage(message.ChannelId, messageText, messageParameters)
-            return
-        }
-        messageText := "*Issues that are unmerged to master:*\n"
-        for _, bugNumber := range lines {
-            messageText += formatOpenProjectBugMessage(bugNumber)
-            messageText += "\n"
-        }
-        // Cannot use UpdateMessage since that doesn't support formatted links
-        slackApi.DeleteMessage(message.ChannelId, timestamp)
-        slackApi.PostMessage(message.ChannelId, messageText, messageParameters)
-    }
-
-    // Thanks
-    matched, _ = regexp.MatchString(`[Tt]hanks`, message.Text)
-    if matched {
-        messageText := "You're welcome! :catbug:"
-        slackApi.PostMessage(message.ChannelId, messageText, messageParameters)
-    }
-}
-
-func getUnMergedBugNumbers() ([]string, error) {
-    log.Printf("Call for unmerged bug check")
-    out, err := exec.Command("sh", "unmerged-bugs.sh").Output()
-    if err != nil {
-        log.Printf("Unmerged bug script failed: %s - Output: %s", err, out)
-        if len(out) > 0 {
-            return nil, fmt.Errorf("%s - Output: %s", err, out)
-        } else {
-            return nil, err
-        }
-    }
-    lines := strings.Split(string(out), "\n")
-    log.Printf("Unmerged bugs before duplicates: %s", lines)
-    // Remove duplicates and non-bugs
-    var result sort.StringSlice = []string{}
-    seen := map[string]string{}
-    for _, line := range lines {
-        _, ok := seen[line]
-        if !ok && len(line) > 0 && string(line[0]) == "3" {
-            result = append(result, line)
-            seen[line] = line
-        }
-    }
-    result.Sort()
-    log.Printf("Unmerged bugs: %s", result)
-    return result, nil
 }
