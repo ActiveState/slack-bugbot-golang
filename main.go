@@ -12,26 +12,28 @@ import (
 
 const botName = "bugbot"
 const botSlackId = "U04BTN9D2"
-const botKey = "xoxb-4401757444-fDt9Tg9nroPbrlh5NxlDy4Kd"
 const bugNumberRegex = `(?:\s|^)#?([13]\d{5})\b(?:[^-]|$)`
 
-type MysqlConfig struct {
-    Host     string
-    Database string
-    Username string
-    Password string
+type Config struct {
+    SlackKey      string
+    MysqlHost     string
+    MysqlDatabase string
+    MysqlUsername string
+    MysqlPassword string
 }
 
 var messageParameters = slack.NewPostMessageParameters()
 var historyParameters = slack.NewHistoryParameters()
-var slackApi = slack.New(botKey)
+var slackApi *slack.Slack
 
-var mysqlConfig = MysqlConfig{}
+var config = Config{}
 
 func main() {
-    file, _ := os.Open("mysqlConfig.json")
+    file, _ := os.Open("config.json")
     decoder := json.NewDecoder(file)
-    decoder.Decode(&mysqlConfig)
+    decoder.Decode(&config)
+
+    slackApi = slack.New(config.SlackKey)
 
     messageParameters.AsUser = true
     messageParameters.EscapeText = false

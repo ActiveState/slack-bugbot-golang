@@ -64,7 +64,7 @@ func bugNumberWasLinkedRecently(number string, channelId string, messageTime str
 
 func fetchOpenProjectBugTitle(bugNumber string) (string, error) {
     connectionURL := fmt.Sprintf("%s:%s@tcp(%s:3306)/%s?allowOldPasswords=1",
-    mysqlConfig.Username, mysqlConfig.Password, mysqlConfig.Host, mysqlConfig.Database)
+    config.MysqlUsername, config.MysqlPassword, config.MysqlHost, config.MysqlDatabase)
     log.Printf(connectionURL)
     db, err := sql.Open("mysql", connectionURL)
     if err != nil {

@@ -1,0 +1,7 @@
+{
+  "SlackKey": "slackkey",
+  "MysqlHost": "host",
+  "MysqlDatabase": "database",
+  "MysqlUsername": "username",
+  "MysqlPassword": "password"
+}
