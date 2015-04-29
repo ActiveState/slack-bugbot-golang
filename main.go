@@ -1,7 +1,7 @@
 package main
 
 import (
-    "github.com/Wiwiweb/slack"
+    "github.com/nlopes/slack"
     "database/sql"
     _ "github.com/go-sql-driver/mysql"
     "log"
@@ -13,6 +13,7 @@ import (
     "encoding/json"
     "errors"
     "os/exec"
+    "sort"
 )
 
 const botName = "bugbot"
@@ -176,11 +177,8 @@ func bugbotMention(message *slack.MessageEvent) {
         }
         messageText := "*Issues that are unmerged to master:*\n"
         for _, bugNumber := range lines {
-            // Kind of a hack until I can make sure getUnMergedBugNumbers returns only bug numbers
-            if bugNumber != "" && string(bugNumber[0]) == "3" {
-                messageText += formatOpenProjectBugMessage(bugNumber)
-                messageText += "\n"
-            }
+            messageText += formatOpenProjectBugMessage(bugNumber)
+            messageText += "\n"
         }
         // Cannot use UpdateMessage since that doesn't support formatted links
         slackApi.DeleteMessage(message.ChannelId, timestamp)
@@ -207,6 +205,18 @@ func getUnMergedBugNumbers() ([]string, error) {
         }
     }
     lines := strings.Split(string(out), "\n")
-    log.Printf("Unmerged bugs: %s", lines)
-    return lines, nil
+    log.Printf("Unmerged bugs before duplicates: %s", lines)
+    // Remove duplicates and non-bugs
+    var result sort.StringSlice = []string{}
+    seen := map[string]string{}
+    for _, line := range lines {
+        _, ok := seen[line]
+        if !ok && len(line) > 0 && string(line[0]) == "3" {
+            result = append(result, line)
+            seen[line] = line
+        }
+    }
+    result.Sort()
+    log.Printf("Unmerged bugs: %s", result)
+    return result, nil
 }
