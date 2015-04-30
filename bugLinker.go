@@ -106,6 +106,5 @@ func fetchOpenProjectBugInfo(bugNumber string) (OpenProjectBug, error) {
         return openProjectBug, errors.New("This bug doesn't exist!")
     }
 
-    log.Printf("#%s: %s", bugNumber, openProjectBug)
     return openProjectBug, nil
 }

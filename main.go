@@ -58,17 +58,25 @@ func main() {
             // That event doesn't contain the Username, so we can't use message.Username
             log.Printf("Message from %s in channel %s: %s\n", message.UserId, message.ChannelId, message.Text)
 
-            matches := bugNbRegex.FindAllStringSubmatch(message.Text, -1)
-            if matches != nil {
+            if strings.Contains(message.Text, botName) || strings.Contains(message.Text, botSlackId) {
+                bugbotMention(message)
+            } else if matches := bugNbRegex.FindAllStringSubmatch(message.Text, -1) ; matches != nil {
                 // We only care about the first capturing group
                 matchesNb := make([]string, len(matches))
                 for i, _ := range matches {
                     matchesNb[i] = matches[i][1]
                 }
                 bugMentions(matchesNb, message)
-            } else if strings.Contains(message.Text, botName) || strings.Contains(message.Text, botSlackId) {
-                bugbotMention(message)
             }
         }
     }
+}
+
+func inArray(value string, array []string) bool {
+    for _, arrayVal := range array {
+        if value == arrayVal {
+            return true
+        }
+    }
+    return false
 }

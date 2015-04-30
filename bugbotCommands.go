@@ -15,23 +15,7 @@ func bugbotMention(message *slack.MessageEvent) {
     // Unmerged bugs
     matched, _ := regexp.MatchString(`^(?:[@/]?bugbot|<@U04BTN9D2>) unmerged`, message.Text)
     if matched {
-        _, timestamp, _ := slackApi.PostMessage(message.ChannelId, "Working on it... :catbug:", messageParameters)
-        lines, err := getUnMergedBugNumbers()
-        if err != nil {
-            // Cannot use UpdateMessage reliably, doesn't work if we try to update the message before it appears
-            slackApi.DeleteMessage(message.ChannelId, timestamp)
-            messageText := fmt.Sprintf("Oh no! Something went wrong with the unmerged bugs script!\n`%s`", err)
-            slackApi.PostMessage(message.ChannelId, messageText, messageParameters)
-            return
-        }
-        messageText := "*Issues that are unmerged to master:*\n"
-        for _, bugNumber := range lines {
-            messageText += formatOpenProjectBugMessage(bugNumber)
-            messageText += "\n"
-        }
-        // Cannot use UpdateMessage since that doesn't support formatted links
-        slackApi.DeleteMessage(message.ChannelId, timestamp)
-        slackApi.PostMessage(message.ChannelId, messageText, messageParameters)
+        printUnmergedBugNumbers(message)
     }
 
     // Thanks
@@ -40,6 +24,39 @@ func bugbotMention(message *slack.MessageEvent) {
         messageText := "You're welcome! :catbug:"
         slackApi.PostMessage(message.ChannelId, messageText, messageParameters)
     }
+}
+
+func printUnmergedBugNumbers(message *slack.MessageEvent) {
+    _, timestamp, _ := slackApi.PostMessage(message.ChannelId, "Working on it... :catbug:", messageParameters)
+    lines, err := getUnMergedBugNumbers()
+    if err != nil {
+        // Cannot use UpdateMessage reliably, doesn't work if we try to update the message before it appears
+        slackApi.DeleteMessage(message.ChannelId, timestamp)
+        messageText := fmt.Sprintf("Oh no! Something went wrong with the unmerged bugs script!\n`%s`", err)
+        slackApi.PostMessage(message.ChannelId, messageText, messageParameters)
+        return
+    }
+    messageText := "*Issues that are unmerged to master:*\n"
+    filterBugs := []string{}
+    filterCommand := regexp.MustCompile(`filter(?: 3\d{5})+`).FindString(message.Text)
+    if len(filterCommand) > 0 {
+        filterBugs = regexp.MustCompile(`3\d{5}`).FindAllString(filterCommand, -1)
+    }
+    log.Printf("Bugs to filter: %s", filterBugs)
+    for _, bugNumber := range lines {
+        if inArray(bugNumber, filterBugs) {
+            continue
+        }
+        opBug, opErr := fetchOpenProjectBugInfo(bugNumber)
+        if inArray(opBug.Parent, filterBugs) {
+            continue
+        }
+        messageText += formatOpenProjectBugMessage(opBug, opErr)
+        messageText += "\n"
+    }
+    // Cannot use UpdateMessage since that doesn't support formatted links
+    slackApi.DeleteMessage(message.ChannelId, timestamp)
+    slackApi.PostMessage(message.ChannelId, messageText, messageParameters)
 }
 
 func getUnMergedBugNumbers() ([]string, error) {
