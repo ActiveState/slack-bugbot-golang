@@ -12,7 +12,7 @@ import (
 
 const botName = "bugbot"
 const botSlackId = "U04BTN9D2"
-const bugNumberRegex = `(?:\s|^)#?([13]\d{5})\b(?:[^-]|$)`
+const bugNumberRegex = `[\s^(\/]#?([13]\d{5})\b(?:[^-]|$)`
 
 type Config struct {
     SlackKey      string

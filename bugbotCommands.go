@@ -13,7 +13,7 @@ import (
 func bugbotMention(message *slack.MessageEvent) {
     log.Printf("That message mentions bugbot")
     // Unmerged bugs
-    matched, _ := regexp.MatchString(`^(?:[@/]?bugbot|<@U04BTN9D2>) unmerged`, message.Text)
+    matched, _ := regexp.MatchString(`^(?:[@\/]?bugbot|<@U04BTN9D2>) unmerged`, message.Text)
     if matched {
         printUnmergedBugNumbers(message)
     }
