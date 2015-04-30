@@ -14,10 +14,11 @@ const openProjectBugUrl = "https://openproject.activestate.com/work_packages/%s"
 const bugzillaBugUrl = "https://bugs.activestate.com/show_bug.cgi?id=%s"
 
 type OpenProjectBug struct {
-    Number  string
-    Subject string
-    Type    string
-    Parent  string
+    Number     string
+    Subject    string
+    Type       string
+    Parent     string
+    AssignedTo string
 }
 
 func bugMentions(bugNumbers []string, message *slack.MessageEvent) {
@@ -47,12 +48,12 @@ func formatOpenProjectBugMessage(openProjectBug OpenProjectBug, err error) strin
     if err != nil && err.Error() == "This bug doesn't exist!" {
         messageText += fmt.Sprintf("Bug %s doesn't exist!", openProjectBug.Number)
     } else if openProjectBug.Subject == "" {
-        messageText += fmt.Sprintf("<%s|%s (Couldn't fetch title)>",
+        messageText += fmt.Sprintf("<%s|*%s*> (Couldn't fetch info)",
         fmt.Sprintf(openProjectBugUrl, openProjectBug.Number), openProjectBug.Number)
     } else {
-        messageText += fmt.Sprintf("<%s|*%s #%s:* %s>",
+        messageText += fmt.Sprintf("<%s|*%s #%s:* %s> (Assigned to %s)",
         fmt.Sprintf(openProjectBugUrl, openProjectBug.Number),
-        openProjectBug.Type, openProjectBug.Number, openProjectBug.Subject)
+        openProjectBug.Type, openProjectBug.Number, openProjectBug.Subject, openProjectBug.AssignedTo)
     }
     return messageText
 }
@@ -81,8 +82,9 @@ func fetchOpenProjectBugInfo(bugNumber string) (OpenProjectBug, error) {
     }
     defer db.Close()
 
-    sqlStatement := `SELECT subject,types.name,parent_id FROM work_packages
+    sqlStatement := `SELECT subject, types.name, users.firstname, users.lastname, parent_id FROM work_packages
                      LEFT JOIN types ON work_packages.type_id=types.id
+                     LEFT JOIN users ON work_packages.assigned_to_id=users.id
                      WHERE work_packages.id=?`
     stmtIns, err := db.Prepare(sqlStatement)
     if err != nil {
@@ -91,11 +93,19 @@ func fetchOpenProjectBugInfo(bugNumber string) (OpenProjectBug, error) {
     }
     defer stmtIns.Close()
 
-    stmtIns.QueryRow(bugNumber).Scan(&openProjectBug.Subject, &openProjectBug.Type, &openProjectBug.Parent)
+    var firstname string
+    var lastname string
+    stmtIns.QueryRow(bugNumber).Scan(
+    &openProjectBug.Subject, &openProjectBug.Type, &firstname, &lastname, &openProjectBug.Parent)
     if openProjectBug.Type == "none" {
         openProjectBug.Type = ""
     }
-    log.Printf("OP bug: %s, %s, %s", openProjectBug.Subject, openProjectBug.Type, openProjectBug.Parent)
+    if firstname != "" && lastname != "" {
+        openProjectBug.AssignedTo = firstname + " " + lastname
+    } else {
+        openProjectBug.AssignedTo = "nobody"
+    }
+    log.Printf("OP bug: %+v", openProjectBug)
 
     if err != nil {
         log.Printf("MySQL statement failed! %s", err.Error())
