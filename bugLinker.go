@@ -92,6 +92,9 @@ func fetchOpenProjectBugInfo(bugNumber string) (OpenProjectBug, error) {
     defer stmtIns.Close()
 
     stmtIns.QueryRow(bugNumber).Scan(&openProjectBug.Subject, &openProjectBug.Type, &openProjectBug.Parent)
+    if openProjectBug.Type == "none" {
+        openProjectBug.Type = ""
+    }
     log.Printf("OP bug: %s, %s, %s", openProjectBug.Subject, openProjectBug.Type, openProjectBug.Parent)
 
     if err != nil {
