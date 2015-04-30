@@ -13,6 +13,13 @@ import (
 const openProjectBugUrl = "https://openproject.activestate.com/work_packages/%s"
 const bugzillaBugUrl = "https://bugs.activestate.com/show_bug.cgi?id=%s"
 
+type OpenProjectBug struct {
+    Number  string
+    Subject string
+    Type    string
+    Parent  string
+}
+
 func bugMentions(bugNumbers []string, message *slack.MessageEvent) {
     log.Printf("That message mentions these bugs: %s", bugNumbers)
     var messageText string
@@ -22,7 +29,7 @@ func bugMentions(bugNumbers []string, message *slack.MessageEvent) {
             log.Printf("Bug %s was already linked recently", match)
         } else {
             if string(match[0]) == "3" {
-                messageText += formatOpenProjectBugMessage(match)
+                messageText += formatOpenProjectBugMessage(fetchOpenProjectBugInfo(match))
             } else {
                 messageText += fmt.Sprintf(bugzillaBugUrl, match)
             }
@@ -35,17 +42,17 @@ func bugMentions(bugNumbers []string, message *slack.MessageEvent) {
     }
 }
 
-func formatOpenProjectBugMessage(bugNumber string) string {
+func formatOpenProjectBugMessage(openProjectBug OpenProjectBug, err error) string {
     var messageText string
-    bugTitle, err := fetchOpenProjectBugTitle(bugNumber)
     if err != nil && err.Error() == "This bug doesn't exist!" {
-        messageText += fmt.Sprintf("Bug %s doesn't exist!", bugNumber)
-    } else if bugTitle == "" {
+        messageText += fmt.Sprintf("Bug %s doesn't exist!", openProjectBug.Number)
+    } else if openProjectBug.Subject == "" {
         messageText += fmt.Sprintf("<%s|%s (Couldn't fetch title)>",
-        fmt.Sprintf(openProjectBugUrl, bugNumber), bugNumber)
+        fmt.Sprintf(openProjectBugUrl, openProjectBug.Number), openProjectBug.Number)
     } else {
-        messageText += fmt.Sprintf("<%s|%s: %s>",
-        fmt.Sprintf(openProjectBugUrl, bugNumber), bugNumber, bugTitle)
+        messageText += fmt.Sprintf("<%s|*%s #%s:* %s>",
+        fmt.Sprintf(openProjectBugUrl, openProjectBug.Number),
+        openProjectBug.Type, openProjectBug.Number, openProjectBug.Subject)
     }
     return messageText
 }
@@ -62,35 +69,40 @@ func bugNumberWasLinkedRecently(number string, channelId string, messageTime str
     return false
 }
 
-func fetchOpenProjectBugTitle(bugNumber string) (string, error) {
+func fetchOpenProjectBugInfo(bugNumber string) (OpenProjectBug, error) {
+    var openProjectBug OpenProjectBug
+    openProjectBug.Number = bugNumber
     connectionURL := fmt.Sprintf("%s:%s@tcp(%s:3306)/%s?allowOldPasswords=1",
     config.MysqlUsername, config.MysqlPassword, config.MysqlHost, config.MysqlDatabase)
-    log.Printf(connectionURL)
     db, err := sql.Open("mysql", connectionURL)
     if err != nil {
         log.Printf("Mysql database is unavailable! %s", err.Error())
-        return "", err
+        return openProjectBug, err
     }
     defer db.Close()
 
-    stmtIns, err := db.Prepare("SELECT subject FROM work_packages WHERE id=?")
+    sqlStatement := `SELECT subject,types.name,parent_id FROM work_packages
+                     LEFT JOIN types ON work_packages.type_id=types.id
+                     WHERE work_packages.id=?`
+    stmtIns, err := db.Prepare(sqlStatement)
     if err != nil {
         log.Printf("MySQL statement preparation failed! %s", err.Error())
-        return "", err
+        return openProjectBug, err
     }
     defer stmtIns.Close()
 
-    var bugTitle string
-    stmtIns.QueryRow(bugNumber).Scan(&bugTitle)
+    stmtIns.QueryRow(bugNumber).Scan(&openProjectBug.Subject, &openProjectBug.Type, &openProjectBug.Parent)
+    log.Printf("OP bug: %s, %s, %s", openProjectBug.Subject, openProjectBug.Type, openProjectBug.Parent)
+
     if err != nil {
         log.Printf("MySQL statement failed! %s", err.Error())
-        return "", err
+        return openProjectBug, err
     }
 
-    if bugTitle == "" {
-        return "", errors.New("This bug doesn't exist!")
+    if openProjectBug.Subject == "" {
+        return openProjectBug, errors.New("This bug doesn't exist!")
     }
 
-    log.Printf("#%s: %s", bugNumber, bugTitle)
-    return bugTitle, nil
+    log.Printf("#%s: %s", bugNumber, openProjectBug)
+    return openProjectBug, nil
 }
