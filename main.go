@@ -54,7 +54,7 @@ func main() {
     for {
         event := <-chReceiver
         message, ok := event.Data.(*slack.MessageEvent)
-        if ok && message.SubType != "bot_message" { // If this is a MessageEvent
+        if ok && message.SubType != "bot_message" && message.UserId != botSlackId { // If this is a MessageEvent
             // That event doesn't contain the Username, so we can't use message.Username
             log.Printf("Message from %s in channel %s: %s\n", message.UserId, message.ChannelId, message.Text)
 
