@@ -29,6 +29,7 @@ func bugbotMention(message *slack.MessageEvent) {
 func printUnmergedBugNumbers(message *slack.MessageEvent) {
     _, timestamp, _ := slackApi.PostMessage(message.ChannelId, "Working on it... :catbug:", messageParameters)
     lines, err := getUnMergedBugNumbers()
+
     if err != nil {
         // Cannot use UpdateMessage reliably, doesn't work if we try to update the message before it appears
         slackApi.DeleteMessage(message.ChannelId, timestamp)
@@ -36,13 +37,25 @@ func printUnmergedBugNumbers(message *slack.MessageEvent) {
         slackApi.PostMessage(message.ChannelId, messageText, messageParameters)
         return
     }
-    messageText := "*Issues that are unmerged to master:*\n"
+
     filterBugs := []string{}
     filterCommand := regexp.MustCompile(`filter(?: 3\d{5})+`).FindString(message.Text)
     if len(filterCommand) > 0 {
         filterBugs = regexp.MustCompile(`3\d{5}`).FindAllString(filterCommand, -1)
     }
+    filterMessage := ""
+    if len(filterBugs) > 0 {
+        bugGrammar := "bug"
+        if len(filterBugs) > 1 {
+            bugGrammar = "bugs"
+        }
+        filterMessage = fmt.Sprintf("(Without %s %v and children)", bugGrammar, filterBugs)
+        filterMessage = strings.Replace(filterMessage, "[", "", 1)
+        filterMessage = strings.Replace(filterMessage, "]", "", 1)
+    }
+    messageText := fmt.Sprintf("*Issues that are unmerged to master:* %s\n", filterMessage)
     log.Printf("Bugs to filter: %s", filterBugs)
+    totalBugs := 0
     for _, bugNumber := range lines {
         if inArray(bugNumber, filterBugs) {
             continue
@@ -53,7 +66,10 @@ func printUnmergedBugNumbers(message *slack.MessageEvent) {
         }
         messageText += formatOpenProjectBugMessage(opBug, opErr)
         messageText += "\n"
+        totalBugs++
     }
+    messageText += fmt.Sprintf("*Total bugs: %v*", totalBugs)
+
     // Cannot use UpdateMessage since that doesn't support formatted links
     slackApi.DeleteMessage(message.ChannelId, timestamp)
     slackApi.PostMessage(message.ChannelId, messageText, messageParameters)
