@@ -61,14 +61,14 @@ func main() {
             log.Printf("Message from %s in channel %s: %s\n", message.UserId, message.ChannelId, message.Text)
 
             if strings.Contains(message.Text, botName) || strings.Contains(message.Text, botSlackId) {
-                bugbotMention(message)
+                go bugbotMention(message)
             } else if matches := bugNbRegex.FindAllStringSubmatch(message.Text, -1); matches != nil {
                 // We only care about the first capturing group
                 matchesNb := make([]string, len(matches))
                 for i, _ := range matches {
                     matchesNb[i] = matches[i][1]
                 }
-                bugMentions(matchesNb, message)
+                go bugMentions(matchesNb, message)
             }
         }
     }
