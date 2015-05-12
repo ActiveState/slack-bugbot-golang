@@ -12,7 +12,7 @@ import (
 
 const botName = "bugbot"
 const botSlackId = "U04BTN9D2"
-const bugNumberRegex = `[\s^(\/]#?([13]\d{5})\b(?:[^-]|$)`
+const bugNumberRegex = `(?:[\s(\/]|^)#?([13]\d{5})\b(?:[^-]|$)`
 
 type Config struct {
     SlackKey      string
@@ -55,6 +55,8 @@ func main() {
         event := <-chReceiver
         message, ok := event.Data.(*slack.MessageEvent)
         if ok && message.SubType != "bot_message" && message.UserId != botSlackId { // If this is a MessageEvent
+            // Remove stuff in codequotes
+            message.Text = regexp.MustCompile("```.*```").ReplaceAllString(message.Text, "")
             // That event doesn't contain the Username, so we can't use message.Username
             log.Printf("Message from %s in channel %s: %s\n", message.UserId, message.ChannelId, message.Text)
 
