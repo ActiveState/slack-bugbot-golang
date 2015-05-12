@@ -48,7 +48,7 @@ func bugMentions(bugNumbers []string, message *slack.MessageEvent) {
 func formatOpenProjectBugMessage(opBug OpenProjectBug, err error) string {
     var messageText string
     if err != nil && err.Error() == "This bug doesn't exist!" {
-        messageText += fmt.Sprintf("Bug %s doesn't exist!", opBug.Number)
+        return fmt.Sprintf("Bug %s doesn't exist!", opBug.Number)
     } else if opBug.Subject == "" {
         messageText += fmt.Sprintf("<%s|*#%s*> (Couldn't fetch info)",
             fmt.Sprintf(openProjectBugUrl, opBug.Number), opBug.Number)
@@ -56,14 +56,19 @@ func formatOpenProjectBugMessage(opBug OpenProjectBug, err error) string {
         messageText += fmt.Sprintf("<%s|_%s #%s:_ %s> (Assigned to %s: %s)",
             fmt.Sprintf(openProjectBugUrl, opBug.Number),
             opBug.Type, opBug.Number,
-            opBug.Subject, opBug.AssignedTo, opBug.Status)
+            escapeLinkText(opBug.Subject), opBug.AssignedTo, opBug.Status)
     } else {
         messageText += fmt.Sprintf("<%s|*%s #%s:* %s> (Assigned to %s: %s)",
             fmt.Sprintf(openProjectBugUrl, opBug.Number),
             opBug.Type, opBug.Number,
-            opBug.Subject, opBug.AssignedTo, opBug.Status)
+            escapeLinkText(opBug.Subject), opBug.AssignedTo, opBug.Status)
     }
     return messageText
+}
+
+func escapeLinkText(text string) string {
+    replacer := strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;")
+    return replacer.Replace(text)
 }
 
 func bugNumberWasLinkedRecently(number string, channelId string, messageTime string) bool {
