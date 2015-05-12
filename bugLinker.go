@@ -45,23 +45,23 @@ func bugMentions(bugNumbers []string, message *slack.MessageEvent) {
     }
 }
 
-func formatOpenProjectBugMessage(openProjectBug OpenProjectBug, err error) string {
+func formatOpenProjectBugMessage(opBug OpenProjectBug, err error) string {
     var messageText string
     if err != nil && err.Error() == "This bug doesn't exist!" {
-        messageText += fmt.Sprintf("Bug %s doesn't exist!", openProjectBug.Number)
-    } else if openProjectBug.Subject == "" {
+        messageText += fmt.Sprintf("Bug %s doesn't exist!", opBug.Number)
+    } else if opBug.Subject == "" {
         messageText += fmt.Sprintf("<%s|*#%s*> (Couldn't fetch info)",
-        fmt.Sprintf(openProjectBugUrl, openProjectBug.Number), openProjectBug.Number)
-    } else if openProjectBug.IsClosed {
+            fmt.Sprintf(openProjectBugUrl, opBug.Number), opBug.Number)
+    } else if opBug.IsClosed {
         messageText += fmt.Sprintf("<%s|_%s #%s:_ %s> (Assigned to %s: %s)",
-        fmt.Sprintf(openProjectBugUrl, openProjectBug.Number),
-        openProjectBug.Type, openProjectBug.Number,
-        openProjectBug.Subject, openProjectBug.AssignedTo, openProjectBug.Status)
+            fmt.Sprintf(openProjectBugUrl, opBug.Number),
+            opBug.Type, opBug.Number,
+            opBug.Subject, opBug.AssignedTo, opBug.Status)
     } else {
         messageText += fmt.Sprintf("<%s|*%s #%s:* %s> (Assigned to %s: %s)",
-        fmt.Sprintf(openProjectBugUrl, openProjectBug.Number),
-        openProjectBug.Type, openProjectBug.Number,
-        openProjectBug.Subject, openProjectBug.AssignedTo, openProjectBug.Status)
+            fmt.Sprintf(openProjectBugUrl, opBug.Number),
+            opBug.Type, opBug.Number,
+            opBug.Subject, opBug.AssignedTo, opBug.Status)
     }
     return messageText
 }
@@ -79,14 +79,14 @@ func bugNumberWasLinkedRecently(number string, channelId string, messageTime str
 }
 
 func fetchOpenProjectBugInfo(bugNumber string) (OpenProjectBug, error) {
-    var openProjectBug OpenProjectBug
-    openProjectBug.Number = bugNumber
+    var opBug OpenProjectBug
+    opBug.Number = bugNumber
     connectionURL := fmt.Sprintf("%s:%s@tcp(%s:3306)/%s?allowOldPasswords=1",
-    config.MysqlUsername, config.MysqlPassword, config.MysqlHost, config.MysqlDatabase)
+        config.MysqlUsername, config.MysqlPassword, config.MysqlHost, config.MysqlDatabase)
     db, err := sql.Open("mysql", connectionURL)
     if err != nil {
         log.Printf("Mysql database is unavailable! %s", err.Error())
-        return openProjectBug, err
+        return opBug, err
     }
     defer db.Close()
 
@@ -99,33 +99,33 @@ func fetchOpenProjectBugInfo(bugNumber string) (OpenProjectBug, error) {
     stmtIns, err := db.Prepare(sqlStatement)
     if err != nil {
         log.Printf("MySQL statement preparation failed! %s", err.Error())
-        return openProjectBug, err
+        return opBug, err
     }
     defer stmtIns.Close()
 
-    var firstname string
-    var lastname string
+    var firstName string
+    var lastName string
     stmtIns.QueryRow(bugNumber).Scan(
-    &openProjectBug.Subject, &openProjectBug.Type, &openProjectBug.Status, &firstname, &lastname,
-    &openProjectBug.Parent, &openProjectBug.IsClosed)
-    if openProjectBug.Type == "none" {
-        openProjectBug.Type = ""
+        &opBug.Subject, &opBug.Type, &opBug.Status, &firstName, &lastName,
+        &opBug.Parent, &opBug.IsClosed)
+    if opBug.Type == "none" {
+        opBug.Type = ""
     }
-    if firstname != "" && lastname != "" {
-        openProjectBug.AssignedTo = firstname + " " + lastname
+    if firstName != "" && lastName != "" {
+        opBug.AssignedTo = firstName + " " + lastName
     } else {
-        openProjectBug.AssignedTo = "nobody"
+        opBug.AssignedTo = "nobody"
     }
-    log.Printf("OP bug: %+v", openProjectBug)
+    log.Printf("OP bug: %+v", opBug)
 
     if err != nil {
         log.Printf("MySQL statement failed! %s", err.Error())
-        return openProjectBug, err
+        return opBug, err
     }
 
-    if openProjectBug.Subject == "" {
-        return openProjectBug, errors.New("This bug doesn't exist!")
+    if opBug.Subject == "" {
+        return opBug, errors.New("This bug doesn't exist!")
     }
 
-    return openProjectBug, nil
+    return opBug, nil
 }

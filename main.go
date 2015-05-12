@@ -62,7 +62,7 @@ func main() {
 
             if strings.Contains(message.Text, botName) || strings.Contains(message.Text, botSlackId) {
                 bugbotMention(message)
-            } else if matches := bugNbRegex.FindAllStringSubmatch(message.Text, -1) ; matches != nil {
+            } else if matches := bugNbRegex.FindAllStringSubmatch(message.Text, -1); matches != nil {
                 // We only care about the first capturing group
                 matchesNb := make([]string, len(matches))
                 for i, _ := range matches {
