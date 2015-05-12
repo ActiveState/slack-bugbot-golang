@@ -72,6 +72,10 @@ func escapeLinkText(text string) string {
 }
 
 func bugNumberWasLinkedRecently(number string, channelId string, messageTime string) bool {
+    // If this is from a private channel, then ignore history
+    if strings.HasPrefix(channelId, "D") {
+        return false
+    }
     historyParameters.Latest = messageTime
     info, _ := slackApi.GetChannelHistory(channelId, historyParameters)
     // Last 10 messages (see historyParameters.Count)
