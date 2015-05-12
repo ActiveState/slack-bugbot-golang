@@ -17,8 +17,10 @@ type OpenProjectBug struct {
     Number     string
     Subject    string
     Type       string
+    Status     string
     Parent     string
     AssignedTo string
+    IsClosed   bool
 }
 
 func bugMentions(bugNumbers []string, message *slack.MessageEvent) {
@@ -48,12 +50,18 @@ func formatOpenProjectBugMessage(openProjectBug OpenProjectBug, err error) strin
     if err != nil && err.Error() == "This bug doesn't exist!" {
         messageText += fmt.Sprintf("Bug %s doesn't exist!", openProjectBug.Number)
     } else if openProjectBug.Subject == "" {
-        messageText += fmt.Sprintf("<%s|*%s*> (Couldn't fetch info)",
+        messageText += fmt.Sprintf("<%s|*#%s*> (Couldn't fetch info)",
         fmt.Sprintf(openProjectBugUrl, openProjectBug.Number), openProjectBug.Number)
-    } else {
-        messageText += fmt.Sprintf("<%s|*%s #%s:* %s> (Assigned to %s)",
+    } else if openProjectBug.IsClosed {
+        messageText += fmt.Sprintf("<%s|_%s #%s:_ %s> (Assigned to %s: %s)",
         fmt.Sprintf(openProjectBugUrl, openProjectBug.Number),
-        openProjectBug.Type, openProjectBug.Number, openProjectBug.Subject, openProjectBug.AssignedTo)
+        openProjectBug.Type, openProjectBug.Number,
+        openProjectBug.Subject, openProjectBug.AssignedTo, openProjectBug.Status)
+    } else {
+        messageText += fmt.Sprintf("<%s|*%s #%s:* %s> (Assigned to %s: %s)",
+        fmt.Sprintf(openProjectBugUrl, openProjectBug.Number),
+        openProjectBug.Type, openProjectBug.Number,
+        openProjectBug.Subject, openProjectBug.AssignedTo, openProjectBug.Status)
     }
     return messageText
 }
@@ -82,9 +90,11 @@ func fetchOpenProjectBugInfo(bugNumber string) (OpenProjectBug, error) {
     }
     defer db.Close()
 
-    sqlStatement := `SELECT subject, types.name, users.firstname, users.lastname, parent_id FROM work_packages
+    sqlStatement := `SELECT subject, types.name, statuses.name, firstname, lastname, parent_id, is_closed
+                     FROM work_packages
                      LEFT JOIN types ON work_packages.type_id=types.id
                      LEFT JOIN users ON work_packages.assigned_to_id=users.id
+                     LEFT JOIN statuses ON work_packages.status_id=statuses.id
                      WHERE work_packages.id=?`
     stmtIns, err := db.Prepare(sqlStatement)
     if err != nil {
@@ -96,7 +106,8 @@ func fetchOpenProjectBugInfo(bugNumber string) (OpenProjectBug, error) {
     var firstname string
     var lastname string
     stmtIns.QueryRow(bugNumber).Scan(
-    &openProjectBug.Subject, &openProjectBug.Type, &firstname, &lastname, &openProjectBug.Parent)
+    &openProjectBug.Subject, &openProjectBug.Type, &openProjectBug.Status, &firstname, &lastname,
+    &openProjectBug.Parent, &openProjectBug.IsClosed)
     if openProjectBug.Type == "none" {
         openProjectBug.Type = ""
     }
