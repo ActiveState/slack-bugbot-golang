@@ -21,8 +21,18 @@ func bugbotMention(message *slack.MessageEvent) {
     // Thanks
     matched, _ = regexp.MatchString(`[Tt]hanks`, message.Text)
     if matched {
-        messageText := "You're welcome! :catbug:"
-        slackApi.PostMessage(message.ChannelId, messageText, messageParameters)
+        slackApi.PostMessage(message.ChannelId, "You're welcome! :catbug:", messageParameters)
+    }
+
+    // Good job
+    matched, _ = regexp.MatchString(`[Gg](?:ood|reat) (?:job|work)`, message.Text)
+    if matched {
+        slackApi.PostMessage(message.ChannelId, "Thanks! :catbug:", messageParameters)
+    }
+
+    // Ping: check if bot is alive
+    if message.Text == "bugbot" || message.Text == "<@U04BTN9D2>" {
+        slackApi.PostMessage(message.ChannelId, "Hi!", messageParameters)
     }
 }
 
@@ -93,7 +103,7 @@ func getUnMergedBugNumbers() ([]string, error) {
     seen := map[string]string{}
     for _, line := range lines {
         _, ok := seen[line]
-        if !ok && len(line) > 0 && string(line[0]) == "3" {
+        if !ok && len(line) > 0 && strings.HasPrefix(line, "3") {
             result = append(result, line)
             seen[line] = line
         }
