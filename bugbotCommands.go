@@ -16,23 +16,28 @@ func bugbotMention(message *slack.MessageEvent) {
     matched, _ := regexp.MatchString(`^(?:[@\/]?bugbot|<@U04BTN9D2>) unmerged`, message.Text)
     if matched {
         printUnmergedBugNumbers(message)
+        return
     }
 
     // Thanks
     matched, _ = regexp.MatchString(`[Tt]hanks`, message.Text)
     if matched {
         slackApi.PostMessage(message.ChannelId, "You're welcome! :catbug:", messageParameters)
+        return
     }
 
     // Good job
     matched, _ = regexp.MatchString(`[Gg](?:ood|reat) (?:job|work)`, message.Text)
     if matched {
         slackApi.PostMessage(message.ChannelId, "Thanks! :catbug:", messageParameters)
+        return
     }
 
     // Ping: check if bot is alive
-    if message.Text == "bugbot" || message.Text == "<@U04BTN9D2>" {
+    matched, _ = regexp.MatchString(`(?:[Hh](?:ello|i) )?(?:bugbot|<@U04BTN9D2>)`, message.Text)
+    if matched {
         slackApi.PostMessage(message.ChannelId, "Hi!", messageParameters)
+        return
     }
 }
 
