@@ -1,2 +1,4 @@
+.idea
 config.json
-slack-bugbot-golang
+bugbot
+stackato-release

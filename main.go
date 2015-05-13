@@ -8,6 +8,7 @@ import (
     "regexp"
     "strings"
     "time"
+    "os/exec"
 )
 
 const botName = "bugbot"
@@ -34,6 +35,19 @@ func main() {
     decoder.Decode(&config)
 
     slackApi = slack.New(config.SlackKey)
+
+    if _, err := os.Stat("stackato-release"); os.IsNotExist(err) {
+        log.Printf("No stackato-release folder! Cloning the repo...")
+        out, err := exec.Command("git", "clone", "git@github.com:ActiveState/stackato-release.git").Output()
+        if err != nil {
+            log.Printf("Clone failed: %s - Output: %s", err, out)
+        }
+        if _, err := os.Stat("stackato-release"); os.IsNotExist(err) {
+            log.Printf("Folder didn't get created")
+        } else {
+            log.Printf("Clone successful")
+        }
+    }
 
     messageParameters.AsUser = true
     messageParameters.EscapeText = false
