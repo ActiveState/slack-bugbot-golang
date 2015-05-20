@@ -34,7 +34,7 @@ func bugbotMention(message *slack.MessageEvent) {
     }
 
     // Ping: check if bot is alive
-    matched, _ = regexp.MatchString(`(?:[Hh](?:ello|i) )?(?:bugbot|<@U04BTN9D2>)`, message.Text)
+    matched, _ = regexp.MatchString(`^(?:[Hh](?:ello|i) )?(?:bugbot|<@U04BTN9D2>)`, message.Text)
     if matched {
         slackApi.PostMessage(message.ChannelId, "Hi!", messageParameters)
         return
