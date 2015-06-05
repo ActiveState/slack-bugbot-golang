@@ -6,3 +6,5 @@ This Slack bot has two functions:
 * If somebody types `@bugbot unmerged`, the unmerged-bugs.sh script will run, and bugbot will post the list of unerged bugs.
 
 Bugbot needs to be in a channel to see its messages! Summon him by posting `@bugbot:`
+
+Before pushing to Stackato, you need to build the application with `go build`.

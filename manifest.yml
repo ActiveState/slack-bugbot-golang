@@ -1,0 +1,5 @@
+---
+applications:
+- name: bugbot
+  memory: 128M
+  url: []
