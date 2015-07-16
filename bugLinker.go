@@ -20,6 +20,7 @@ type OpenProjectBug struct {
     Status     string
     Parent     string
     AssignedTo string
+    CreatedBy  string
     IsClosed   bool
 }
 
@@ -90,6 +91,7 @@ func bugNumberWasLinkedRecently(number string, channelId string, messageTime str
 func fetchOpenProjectBugInfo(bugNumber string) (OpenProjectBug, error) {
     var opBug OpenProjectBug
     opBug.Number = bugNumber
+
     connectionURL := fmt.Sprintf("%s:%s@tcp(%s:3306)/%s?allowOldPasswords=1",
         config.MysqlUsername, config.MysqlPassword, config.MysqlHost, config.MysqlDatabase)
     db, err := sql.Open("mysql", connectionURL)

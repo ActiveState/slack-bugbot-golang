@@ -63,6 +63,8 @@ func main() {
     go rtmAPI.Keepalive(20 * time.Second)
     log.Printf("RTM is started")
 
+    go announceNewBugsLoop()
+
     bugNbRegex := regexp.MustCompile(bugNumberRegex)
 
     for {
