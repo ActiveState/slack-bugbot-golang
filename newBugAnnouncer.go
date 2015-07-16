@@ -70,8 +70,20 @@ func fetchRecentOpenProjectBugs() ([]OpenProjectBug, error) {
 func getNewBugs(recentBugs []OpenProjectBug) []OpenProjectBug {
     var newBugs []OpenProjectBug
     var newBugsNumbers []string
-    fileContents, _ := ioutil.ReadFile(processedNewBugsFile)
+    fileContents, err := ioutil.ReadFile(processedNewBugsFile)
     processedBugs := strings.Split(string(fileContents), "\n")
+
+    if err != nil {
+        // The file doesn't exist, this is our first time running
+        // Create the file, but return empty array
+        log.Printf("Creating %s file", processedNewBugsFile)
+        for _, recentBug := range recentBugs {
+            newBugsNumbers = append(newBugsNumbers, recentBug.Number)
+        }
+        fileContents := strings.Join(newBugsNumbers, "\n")
+        ioutil.WriteFile(processedNewBugsFile, []byte(fileContents), 776)
+        return newBugs
+    }
 
     for _, recentBug := range recentBugs {
         if inArray(recentBug.Number, processedBugs) {
