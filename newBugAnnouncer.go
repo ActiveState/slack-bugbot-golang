@@ -13,6 +13,7 @@ import (
 const bugLimit = 5
 const frequency = 5 * time.Second
 const slackChannelId = "C03A734HK" // #bugs
+//const slackChannelId = "C07MKTS4E" // #bugbot-test
 const processedNewBugsFile = "processedBugs.txt"
 
 func announceNewBugsLoop() {
@@ -99,7 +100,7 @@ func getNewBugs(recentBugs []OpenProjectBug) []OpenProjectBug {
         // If there was any change, write the new bugs to the text file
         lastProcessedBugs := append(newBugsNumbers, processedBugs...)[:bugLimit]
         fileContents := strings.Join(lastProcessedBugs, "\n")
-        ioutil.WriteFile(processedNewBugsFile, []byte(fileContents), 776)
+        ioutil.WriteFile(processedNewBugsFile, []byte(fileContents), 777)
     }
     return newBugs
 }
