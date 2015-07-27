@@ -82,7 +82,11 @@ func getNewBugs(recentBugs []OpenProjectBug) []OpenProjectBug {
             newBugsNumbers = append(newBugsNumbers, recentBug.Number)
         }
         fileContents := strings.Join(newBugsNumbers, "\n")
-        ioutil.WriteFile(processedNewBugsFile, []byte(fileContents), 776)
+        log.Printf("Newly created file contains: %v", newBugsNumbers)
+        err := ioutil.WriteFile(processedNewBugsFile, []byte(fileContents), 0777)
+        if err != nil {
+            log.Printf("Error creating file: %s", err)
+        }
         return newBugs
     }
 
@@ -100,7 +104,11 @@ func getNewBugs(recentBugs []OpenProjectBug) []OpenProjectBug {
         // If there was any change, write the new bugs to the text file
         lastProcessedBugs := append(newBugsNumbers, processedBugs...)[:bugLimit]
         fileContents := strings.Join(lastProcessedBugs, "\n")
-        ioutil.WriteFile(processedNewBugsFile, []byte(fileContents), 777)
+        log.Printf("New contents of file: %v", lastProcessedBugs)
+        err := ioutil.WriteFile(processedNewBugsFile, []byte(fileContents), 0777)
+        if err != nil {
+            log.Printf("Error writing file: %s", err)
+        }
     }
     return newBugs
 }
