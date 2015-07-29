@@ -85,7 +85,7 @@ func getNewBugs(recentBugs []OpenProjectBug) []OpenProjectBug {
         log.Printf("Newly created file contains: %v", newBugsNumbers)
         err := ioutil.WriteFile(processedNewBugsFile, []byte(fileContents), 0777)
         if err != nil {
-            log.Printf("Error creating file: %s", err)
+            log.Fatal("Error creating file: %s", err)
         }
         return newBugs
     }
@@ -107,7 +107,7 @@ func getNewBugs(recentBugs []OpenProjectBug) []OpenProjectBug {
         log.Printf("New contents of file: %v", lastProcessedBugs)
         err := ioutil.WriteFile(processedNewBugsFile, []byte(fileContents), 0777)
         if err != nil {
-            log.Printf("Error writing file: %s", err)
+            log.Fatal("Error writing file: %s", err)
         }
     }
     return newBugs
